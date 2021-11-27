@@ -21,10 +21,31 @@
    When your device connects to an MQTT broker it announces its state in the UUID/<status_topic> topic
    Place your additional variable inits here
 */
+#include "digitpothandler.h"
+#include "counterhandler.h"
+#include "displayhandler.h"
 
 byte mqtt_send_buffer[64];
+int ctr0 = 1;
+int ctr1 = 1;
 
+DisplayHandler dispHandl;
 
+DigitpotHandler digitPot0(33, 32); //inc, dir pins
+DigitpotHandler digitPot1(27, 14); //inc, dir pins
+
+CounterHandler counter0(34, 35);
+CounterHandler counter1(25, 26);
+
+void IRAM_ATTR isr0() {
+  dispHandl.ResetTimeout();
+  counter0.CalcStatDir();
+}
+
+void IRAM_ATTR isr1() {
+  dispHandl.ResetTimeout();
+  counter1.CalcStatDir();
+}
 
 void initIO() {
   /*
@@ -32,6 +53,22 @@ void initIO() {
     Make sure to set the mqttSubTopicCount variable accordingly.
     Place your additional init code here.
   */
+
+  dispHandl.PointToVariables(&ctr0, &ctr1);
+  dispHandl.Init();
+  digitPot0.Init(&ctr0);
+  digitPot0.SetIterRate(50);
+  digitPot1.Init(&ctr1);
+  digitPot1.SetIterRate(50);
+
+  counter0.Init(&ctr0);
+  counter1.Init(&ctr1);
+
+  attachInterrupt(counter0.aPin, isr0, FALLING);
+  attachInterrupt(counter1.aPin, isr1, FALLING);
+  delay(100);
+  ctr0 = 20;
+  ctr1 = 50;
   strcpy(espConfig.mqttSubTopic[0], "/command");
   strcpy(espConfig.mqttSubTopic[1], "/setLocalState");
   espConfig.mqttSubTopicCount = 2;
@@ -44,6 +81,11 @@ void IOprocessInLoop() {
      To publish on MQTT use theis function:
      void mqttPublish(char* topic, char* text);
   */
+  counter0.IterateInLoop();
+  counter1.IterateInLoop();
+  dispHandl.CheckStatus();
+  digitPot0.IterateInLoop();
+  digitPot1.IterateInLoop();
 }
 
 
@@ -56,7 +98,7 @@ bool timerCallback(void *) {
 }
 
 
-void mqttReceivedCallback(char* subtopic, byte* payload, unsigned int length) {
+void mqttReceivedCallback(char* subtopic, byte * payload, unsigned int length) {
   /*
      Called every time a message arrives to a subscribed MQTT topic
      If you subscribe to multiple topics please note that you need to manually select the correct topics here for your application with strcmp for example.
