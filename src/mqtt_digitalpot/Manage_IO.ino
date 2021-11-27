@@ -27,7 +27,11 @@
 
 byte mqtt_send_buffer[64];
 int ctr0 = 1;
+int ctr0_lastsent;
+long last_sent_at0;
 int ctr1 = 1;
+int ctr1_lastsent;
+long last_sent_at1;
 
 DisplayHandler dispHandl;
 
@@ -54,24 +58,27 @@ void initIO() {
     Place your additional init code here.
   */
 
+  ctr0_lastsent = 0;
+  last_sent_at0 = 0;
+  ctr1_lastsent = 0;
+  last_sent_at1 = 0;
+
   dispHandl.PointToVariables(&ctr0, &ctr1);
   dispHandl.Init();
   digitPot0.Init(&ctr0);
-  digitPot0.SetIterRate(50);
+  digitPot0.SetIterRate(10);
   digitPot1.Init(&ctr1);
-  digitPot1.SetIterRate(50);
+  digitPot1.SetIterRate(10);
 
   counter0.Init(&ctr0);
   counter1.Init(&ctr1);
 
   attachInterrupt(counter0.aPin, isr0, FALLING);
   attachInterrupt(counter1.aPin, isr1, FALLING);
-  delay(100);
-  ctr0 = 20;
-  ctr1 = 50;
-  strcpy(espConfig.mqttSubTopic[0], "/command");
-  strcpy(espConfig.mqttSubTopic[1], "/setLocalState");
-  espConfig.mqttSubTopicCount = 2;
+  strcpy(espConfig.mqttSubTopic[0], "/volume");
+  strcpy(espConfig.mqttSubTopic[1], "/fader");
+  strcpy(espConfig.mqttSubTopic[2], "/power");
+  espConfig.mqttSubTopicCount = 3;
 }
 
 
@@ -86,6 +93,9 @@ void IOprocessInLoop() {
   dispHandl.CheckStatus();
   digitPot0.IterateInLoop();
   digitPot1.IterateInLoop();
+
+  sendOnceAfterawhile("/volume_pub", ctr0, &ctr0_lastsent, &last_sent_at0, 1000);
+  sendOnceAfterawhile("/fader_pub", ctr1, &ctr1_lastsent, &last_sent_at1, 1000);
 }
 
 
@@ -94,7 +104,13 @@ bool timerCallback(void *) {
      This function is called periodically defined by TIMERVALUE, 5000ms by default
   */
   //Serial.println("Called every 5 sec");
-  return true;
+  ctr0 = 20;
+  ctr1 = 50;
+
+  mh.mqttPublish("/power_pub", "off");
+
+  dispHandl.ResetTimeout();
+  return false;
 }
 
 
@@ -105,6 +121,7 @@ void mqttReceivedCallback(char* subtopic, byte * payload, unsigned int length) {
      char PDU[] contains the received byte array to char array so you can use strcmp and such.
   */
   char PDU[length];
+  int rec_val = 0;
   for (unsigned int i = 0; i < (length); i++) {
     PDU[i] = char(payload[i]);
     PDU[i + 1] = '\0';
@@ -115,6 +132,28 @@ void mqttReceivedCallback(char* subtopic, byte * payload, unsigned int length) {
   Serial.print("MQTT payload received: ");
   Serial.println(PDU);
 #endif
+  rec_val = atoi(PDU);
+  rec_val = (rec_val > 100) ? 100 : rec_val;
+  rec_val = (rec_val < 1) ? 1 : rec_val;
+
+  if (strcmp(subtopic, "/volume") == 0) {
+    ctr0 = rec_val;
+  }
+  if (strcmp(subtopic, "/fader") == 0) {
+    ctr1 = rec_val;
+  }
+  dispHandl.ResetTimeout();
+}
+
+void sendOnceAfterawhile(char* topic, int val, int *prev_val, long *last_sent, int timeout) {
+  char numstring[10];
+  if ((val != *prev_val) && ( millis()-*last_sent > timeout)) {
+    *prev_val = val;
+    *last_sent = millis();
+    sprintf(numstring, "%d", val);
+    mh.mqttPublish(topic, numstring);
+    dispHandl.SetWifiStatus(espConfig.statuses.wifiIsConnected);
+  }
 }
 
 
