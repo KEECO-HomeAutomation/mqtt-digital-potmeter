@@ -2,7 +2,7 @@
 #define DIGITPOT_H
 
 class DigitpotHandler {
-  public:    
+  public:
     DigitpotHandler(void);
     DigitpotHandler(int inc, int dir);
     void Init(int *sp_p);
@@ -12,6 +12,7 @@ class DigitpotHandler {
     void SetSetpoint(int sp);
     void AssignSetpointVar(int *sp_p);
     void SetIterRate(int rate);
+    int GetActualValue(void);
 
   private:
     int *setpoint;

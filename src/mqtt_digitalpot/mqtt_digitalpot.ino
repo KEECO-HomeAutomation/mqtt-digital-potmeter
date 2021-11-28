@@ -29,7 +29,7 @@
 #define DEBUG     //to enable debug purpose serial output 
 #define OTA       //to enable OTA updates
 #define CSS       //makes the web interface nicer but also slower and less reliable
-#define TIMERVALUE 5000
+#define TIMERVALUE 1000
 
 const char* update_path = "/firmware";
 const char* update_username = "admin";

@@ -6,16 +6,18 @@ class DisplayHandler {
     int switchoff_timeout;
     int* volume;
     int* fader;
+    bool* dev_pow;
 
 
     DisplayHandler(void);
     void Init(void);
-    void PointToVariables(int *vol, int *fad);
-    void DrawSlider(int verpos, int amount);
-    void DrawSliderFilled(int verpos, int amount);
+    void PointToVariables(int *vol, int *fad, bool *power);
+    void DrawSlider(int verpos, int current, int amount);
+    void DrawSliderFilled(int verpos, int current, int amount);
     void DrawConnectionStatus(bool stat);
+    void DrawPowerStatus(bool stat);
     void ResetTimeout(void);
-    void CheckStatus(void);
+    void CheckStatus(int volcur, int fadcur);
     bool GetPowerstat(void);
     void SetWifiStatus(bool stat);
 

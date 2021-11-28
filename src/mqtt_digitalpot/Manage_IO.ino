@@ -24,6 +24,7 @@
 #include "digitpothandler.h"
 #include "counterhandler.h"
 #include "displayhandler.h"
+//#define POWPIN 17   //On-Off toggle button
 
 byte mqtt_send_buffer[64];
 int ctr0 = 1;
@@ -32,6 +33,10 @@ long last_sent_at0;
 int ctr1 = 1;
 int ctr1_lastsent;
 long last_sent_at1;
+
+bool dev_power = false;
+bool dev_power_prev = false;
+long last_pow_int = 0;
 
 DisplayHandler dispHandl;
 
@@ -51,6 +56,13 @@ void IRAM_ATTR isr1() {
   counter1.CalcStatDir();
 }
 
+void IRAM_ATTR powisr() {
+  if ((millis() - last_pow_int) > 300) {
+    last_pow_int = millis();
+    dev_power = !dev_power;
+  }
+}
+
 void initIO() {
   /*
     List the topics to subscribe in the array below. The UUID is automatically inserted before the topic(s) below
@@ -63,18 +75,21 @@ void initIO() {
   ctr1_lastsent = 0;
   last_sent_at1 = 0;
 
-  dispHandl.PointToVariables(&ctr0, &ctr1);
+  dispHandl.PointToVariables(&ctr0, &ctr1, &dev_power);
   dispHandl.Init();
   digitPot0.Init(&ctr0);
-  digitPot0.SetIterRate(10);
+  digitPot0.SetIterRate(15);
   digitPot1.Init(&ctr1);
-  digitPot1.SetIterRate(10);
+  digitPot1.SetIterRate(15);
 
   counter0.Init(&ctr0);
   counter1.Init(&ctr1);
 
+  pinMode(17, INPUT);
+
   attachInterrupt(counter0.aPin, isr0, FALLING);
   attachInterrupt(counter1.aPin, isr1, FALLING);
+  attachInterrupt(17, powisr, FALLING);
   strcpy(espConfig.mqttSubTopic[0], "/volume");
   strcpy(espConfig.mqttSubTopic[1], "/fader");
   strcpy(espConfig.mqttSubTopic[2], "/power");
@@ -90,7 +105,8 @@ void IOprocessInLoop() {
   */
   counter0.IterateInLoop();
   counter1.IterateInLoop();
-  dispHandl.CheckStatus();
+  handlePowerStatus();
+  dispHandl.CheckStatus(digitPot0.GetActualValue(), digitPot1.GetActualValue());
   digitPot0.IterateInLoop();
   digitPot1.IterateInLoop();
 
@@ -107,7 +123,7 @@ bool timerCallback(void *) {
   ctr0 = 20;
   ctr1 = 50;
 
-  mh.mqttPublish("/power_pub", "off");
+  mh.mqttPublish("/power_pub", "0");
 
   dispHandl.ResetTimeout();
   return false;
@@ -142,17 +158,38 @@ void mqttReceivedCallback(char* subtopic, byte * payload, unsigned int length) {
   if (strcmp(subtopic, "/fader") == 0) {
     ctr1 = rec_val;
   }
+  if (strcmp(subtopic, "/power") == 0) {
+    if (strcmp(PDU, "1") == 0 ) {
+      dev_power = true;
+    }
+    else {
+      dev_power = false;
+    }
+  }
   dispHandl.ResetTimeout();
 }
 
 void sendOnceAfterawhile(char* topic, int val, int *prev_val, long *last_sent, int timeout) {
   char numstring[10];
-  if ((val != *prev_val) && ( millis()-*last_sent > timeout)) {
+  if ((val != *prev_val) && ( millis() - *last_sent > timeout)) {
     *prev_val = val;
     *last_sent = millis();
     sprintf(numstring, "%d", val);
     mh.mqttPublish(topic, numstring);
     dispHandl.SetWifiStatus(espConfig.statuses.wifiIsConnected);
+  }
+}
+
+void handlePowerStatus() {
+  if (dev_power_prev != dev_power) {
+    dev_power_prev = dev_power;
+    if (dev_power) {
+      mh.mqttPublish("/power_pub", "1");
+    }
+    else {
+      mh.mqttPublish("/power_pub", "0");
+    }
+    dispHandl.ResetTimeout();
   }
 }
 

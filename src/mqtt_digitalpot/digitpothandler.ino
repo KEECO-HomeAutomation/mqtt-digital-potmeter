@@ -26,6 +26,10 @@ void DigitpotHandler::SetSetpoint(int sp) {
   *setpoint = sp;
 }
 
+int DigitpotHandler::GetActualValue(void) {
+  return actual_value;
+}
+
 void DigitpotHandler::AssignSetpointVar(int *sp_p) {
   setpoint = sp_p;
 }
