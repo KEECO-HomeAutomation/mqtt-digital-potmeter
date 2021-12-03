@@ -24,7 +24,8 @@
 #include "digitpothandler.h"
 #include "counterhandler.h"
 #include "displayhandler.h"
-//#define POWPIN 17   //On-Off toggle button
+#define POWPIN 17   //On-Off toggle button
+#define RELAYPIN 16 //Relay control pin
 
 byte mqtt_send_buffer[64];
 int ctr0 = 1;
@@ -85,11 +86,13 @@ void initIO() {
   counter0.Init(&ctr0);
   counter1.Init(&ctr1);
 
-  pinMode(17, INPUT);
-
+  pinMode(POWPIN, INPUT);
+  pinMode(RELAYPIN, OUTPUT);
+  digitalWrite(RELAYPIN, LOW);
+  
   attachInterrupt(counter0.aPin, isr0, FALLING);
   attachInterrupt(counter1.aPin, isr1, FALLING);
-  attachInterrupt(17, powisr, FALLING);
+  attachInterrupt(POWPIN, powisr, FALLING);
   strcpy(espConfig.mqttSubTopic[0], "/volume");
   strcpy(espConfig.mqttSubTopic[1], "/fader");
   strcpy(espConfig.mqttSubTopic[2], "/power");
@@ -185,9 +188,11 @@ void handlePowerStatus() {
     dev_power_prev = dev_power;
     if (dev_power) {
       mh.mqttPublish("/power_pub", "1");
+      digitalWrite(RELAYPIN, HIGH);
     }
     else {
       mh.mqttPublish("/power_pub", "0");
+      digitalWrite(RELAYPIN, LOW);
     }
     dispHandl.ResetTimeout();
   }
