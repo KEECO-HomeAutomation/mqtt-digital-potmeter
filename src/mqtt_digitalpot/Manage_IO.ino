@@ -41,7 +41,7 @@ long last_pow_int = 0;
 
 DisplayHandler dispHandl;
 
-DigitpotHandler digitPot0(33, 32); //inc, dir pins
+DigitpotHandler digitPot0(32, 33); //inc, dir pins
 DigitpotHandler digitPot1(27, 14); //inc, dir pins
 
 CounterHandler counter0(34, 35);
@@ -64,6 +64,12 @@ void IRAM_ATTR powisr() {
   }
 }
 
+void initDisplay() {
+  dispHandl.PointToVariables(&ctr0, &ctr1, &dev_power);
+  dispHandl.Init();
+  dispHandl.DrawText("Connecting to WiFi..");
+}
+
 void initIO() {
   /*
     List the topics to subscribe in the array below. The UUID is automatically inserted before the topic(s) below
@@ -76,12 +82,10 @@ void initIO() {
   ctr1_lastsent = 0;
   last_sent_at1 = 0;
 
-  dispHandl.PointToVariables(&ctr0, &ctr1, &dev_power);
-  dispHandl.Init();
   digitPot0.Init(&ctr0);
-  digitPot0.SetIterRate(15);
+  digitPot0.SetIterRate(8);
   digitPot1.Init(&ctr1);
-  digitPot1.SetIterRate(15);
+  digitPot1.SetIterRate(8);
 
   counter0.Init(&ctr0);
   counter1.Init(&ctr1);
@@ -89,7 +93,7 @@ void initIO() {
   pinMode(POWPIN, INPUT);
   pinMode(RELAYPIN, OUTPUT);
   digitalWrite(RELAYPIN, LOW);
-  
+
   attachInterrupt(counter0.aPin, isr0, FALLING);
   attachInterrupt(counter1.aPin, isr1, FALLING);
   attachInterrupt(POWPIN, powisr, FALLING);

@@ -12,6 +12,7 @@ class DisplayHandler {
     DisplayHandler(void);
     void Init(void);
     void PointToVariables(int *vol, int *fad, bool *power);
+    void DrawText(char* text);
     void DrawSlider(int verpos, int current, int amount);
     void DrawSliderFilled(int verpos, int current, int amount);
     void DrawConnectionStatus(bool stat);

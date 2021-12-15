@@ -32,6 +32,13 @@ void DisplayHandler::Init(void) {
   display.cp437(true);
 }
 
+void DisplayHandler::DrawText(char* text) {
+  display.clearDisplay();
+  display.setCursor(2, 10);
+  display.print(text);
+  display.display();
+}
+
 void DisplayHandler::DrawSlider(int verpos, int current, int amount) {
   float posfloat = ((float)display.width() - 33.0) / 102.0 * (float)amount;
   float currfloat = ((float)display.width() - 33.0) / 102.0 * (float)current;

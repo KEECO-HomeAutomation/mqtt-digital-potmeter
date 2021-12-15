@@ -67,6 +67,7 @@ void setup() {
   Serial.setTimeout(10);
   Serial.begin(115200);
   while (!Serial);
+  initDisplay();
   Serial.println("Starting KEECO Node...");
   SPIFFS.begin(true);                 //added true so that it will format if needed
   Serial.println("[=_______]");
